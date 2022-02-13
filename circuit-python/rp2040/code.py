@@ -1,10 +1,11 @@
 import board
-import digitalio
-import time
-import neopixel
 import busio
+import digitalio
 import displayio
+import neopixel
+import rtc
 import terminalio
+import time
 import adafruit_displayio_ssd1306
 import adafruit_esp32spi.adafruit_esp32spi_socket as socket
 from adafruit_display_text import label
@@ -20,41 +21,15 @@ DEBUG=False
 
 displayio.release_displays()
 
-# NEOPIXEL Test
-# pixel = neopixel.NeoPixel(board.NEOPIXEL, 1)
-# pixel.brightness = 0.1
-
-
 print("Initializing Display")
 WIDTH = 128
 HEIGHT = 64
 BORDER = 5
 
-#i2c0 = busio.I2C(board.D25, board.D24, frequency=100000)
 i2c1 = busio.I2C(board.SCL, board.SDA, frequency=100000)
 
 display_bus = displayio.I2CDisplay(i2c1, device_address=0x3d)
 display = adafruit_displayio_ssd1306.SSD1306(display_bus, width=128, height=64)
-
-## Default display test below
-# splash = displayio.Group()
-# display.show(splash)
-
-# color_bitmap = displayio.Bitmap(WIDTH, HEIGHT, 1)
-# color_palette = displayio.Palette(1)
-# color_palette[0] = 0xFFFFFF  # White
-
-# bg_sprite = displayio.TileGrid(color_bitmap, pixel_shader=color_palette, x=0, y=0)
-# splash.append(bg_sprite)
-
-# # Draw a smaller inner rectangle
-# inner_bitmap = displayio.Bitmap(WIDTH - BORDER * 2, HEIGHT - BORDER * 2, 1)
-# inner_palette = displayio.Palette(1)
-# inner_palette[0] = 0x000000  # Black
-# inner_sprite = displayio.TileGrid(
-#     inner_bitmap, pixel_shader=inner_palette, x=BORDER, y=BORDER
-# )
-# splash.append(inner_sprite)
 
 # Draw a label
 text = "Initializing"
@@ -116,6 +91,35 @@ def underscore_spaces(s):
     for c in s:
         res += ("_" if c == " " else c)
     return res
+
+t0 = time.localtime(time.time())
+print("Setting up NTP time. Current time = %s" % t0)
+t = None
+while not t:
+    print("Attempting to set time")
+    try:
+        t = esp.get_time()
+        rtc.RTC().datetime = time.localtime(t)
+    except Exception as e:
+        print("Failed to get time: %s" % e)
+        time.sleep(2)
+        continue
+
+print("time = %s" % t)
+t1 = time.localtime(time.time())
+print("New time = %s" % t1)
+
+log_topic = "log/env_sensors"
+log_prefix = "[%s] %s - "
+def log(message, level="INFO"):
+    now = esp.get_time()
+    msg = log_prefix % (level, now) + message
+    try:
+      mqtt_client.publish(log_topic, message)
+    except Exception as e:
+        print("Failed to publish log message: %s" % e)
+
+log("logging test")
 
 try:
     print("Connected to", str(esp.ssid, "utf-8"), "\tRSSI:", esp.rssi)
