@@ -1,5 +1,7 @@
 # Environmental Sensor CircuitPython Code
 
+Collects Air Quality metrics and Temperature & Humidity metrics and publishes them to a MQTT broker
+
 ## Components used
 
 * RP2040 FeatherWing
